@@ -4,7 +4,7 @@ services:
     env: python
     repo: https://github.com/nbrain-team/goodwill.git # Replace with your repo URL
     region: oregon
-    plan: free
+    plan: starter
     branch: master
     rootDir: backend
     buildFilter:
@@ -20,7 +20,7 @@ services:
     env: node
     repo: https://github.com/nbrain-team/goodwill.git # Replace with your repo URL
     region: oregon
-    plan: free
+    plan: starter
     branch: master
     rootDir: frontend
     buildFilter:
