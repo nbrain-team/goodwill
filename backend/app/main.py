@@ -1,10 +1,11 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from app.database import engine, Base, get_db
 from app.models.auction import Auction
 from app.services.scraper import main as run_scraper
+from app.services.analysis import analyze_auction_item
 
 Base.metadata.create_all(bind=engine)
 
@@ -47,4 +48,19 @@ def scrape_auctions(db: Session = Depends(get_db)):
 @app.get("/auctions")
 def get_auctions(db: Session = Depends(get_db)):
     auctions = db.query(Auction).all()
-    return {"auctions": auctions} 
+    return {"auctions": auctions}
+
+@app.post("/analyze/{auction_id}")
+def analyze_auction(auction_id: int, db: Session = Depends(get_db)):
+    db_auction = db.query(Auction).filter(Auction.id == auction_id).first()
+    if not db_auction:
+        raise HTTPException(status_code=404, detail="Auction not found")
+
+    estimated_value, analysis = analyze_auction_item(db_auction.title, db_auction.image_url)
+
+    db_auction.estimated_value = estimated_value
+    db_auction.analysis = analysis
+    db.commit()
+    db.refresh(db_auction)
+    
+    return db_auction 
