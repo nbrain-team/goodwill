@@ -73,7 +73,7 @@ export default function Home() {
   return (
     <main style={{ fontFamily: 'sans-serif', padding: '2rem', backgroundColor: '#111', color: '#eee' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '2rem' }}>Auction Analysis Agent</h1>
+        <h1 style={{ fontSize: '2rem', color: 'white' }}>Auction Analysis Agent</h1>
         <button
           onClick={handleScrape}
           disabled={isLoading}
