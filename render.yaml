@@ -21,7 +21,7 @@ services:
     name: frontend
     env: node
     plan: starter
-    buildCommand: ls -R
+    buildCommand: cd frontend && npm install && npm run build
     startCommand: cd frontend && npm start
     envVars:
       - key: NEXT_PUBLIC_BACKEND_URL
