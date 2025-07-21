@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: backend
+    env: python
+    repo: https://github.com/Demichele/Goodwill_Listing_Tool.git # Replace with your repo URL
+    region: oregon
+    plan: free
+    branch: main
+    rootDir: backend
+    buildFilter:
+      paths:
+      - backend/**
+    build_command: |
+      pip install -r requirements.txt
+      playwright install --with-deps
+    start_command: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+
+  - type: web
+    name: frontend
+    env: node
+    repo: https://github.com/Demichele/Goodwill_Listing_Tool.git # Replace with your repo URL
+    region: oregon
+    plan: free
+    branch: main
+    rootDir: frontend
+    buildFilter:
+      paths:
+      - frontend/**
+    build_command: npm install
+    start_command: npm run build && npm run start
+    env_vars:
+      - key: NEXT_PUBLIC_BACKEND_URL
+        fromService:
+          type: web
+          name: backend
+          property: url 

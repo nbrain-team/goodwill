@@ -1,0 +1,10 @@
+playwright
+pandas
+beautifulsoup4
+fastapi
+uvicorn[standard]
+python-dotenv
+openai
+SQLAlchemy
+psycopg2-binary
+requests 
