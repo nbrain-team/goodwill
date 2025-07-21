@@ -27,7 +27,7 @@ services:
       paths:
       - frontend/**
     build_command: npm install && npm run build
-    start_command: npm start
+    start_command: next start -p $PORT
     env_vars:
       - key: NEXT_PUBLIC_BACKEND_URL
         fromService:
