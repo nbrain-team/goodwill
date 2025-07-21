@@ -1,17 +1,11 @@
 databases:
   - name: goodwill_db
-    databaseName: goodwill_db
-    user: goodwill_user
-    plan: free
+    plan: starter
 
 services:
   - type: web
     name: backend
     env: docker
-    repo: https://github.com/nbrain-team/goodwill.git
-    region: oregon
-    plan: starter
-    branch: master
     rootDir: backend
     dockerfilePath: ./Dockerfile
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
@@ -24,17 +18,10 @@ services:
   - type: web
     name: frontend
     env: node
-    repo: https://github.com/nbrain-team/goodwill.git
-    region: oregon
-    plan: starter
-    branch: master
     rootDir: frontend
-    buildFilter:
-      paths:
-      - frontend/**
-    build_command: npm install && npm run build
-    start_command: next start -p $PORT
-    env_vars:
+    buildCommand: npm install && npm run build
+    startCommand: next start -p $PORT
+    envVars:
       - key: NEXT_PUBLIC_BACKEND_URL
         fromService:
           type: web
