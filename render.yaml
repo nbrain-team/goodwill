@@ -13,20 +13,16 @@ services:
         fromDatabase:
           name: goodwill_db
           property: connectionString
+      - key: OPENAI_API_KEY
+        sync: false # Ensures you will be prompted for this value in the Render dashboard
 
   - type: web
     name: frontend
     env: node
-    buildCommand: pwd && ls -R
-    startCommand: cd frontend && next start -p $PORT
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
     envVars:
-      - key: NEXT_PUBLIC_BACKEND_URL
-        fromService:
-          type: web
-          name: backend
-          property: url
-
-    build_env_vars:
       - key: NEXT_PUBLIC_BACKEND_URL
         fromService:
           type: web
