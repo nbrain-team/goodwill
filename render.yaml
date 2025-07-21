@@ -23,5 +23,6 @@ services:
     envVars:
       - key: NEXT_PUBLIC_BACKEND_URL
         fromService:
+          type: web
           name: backend
-          property: url 
+          property: hostport 

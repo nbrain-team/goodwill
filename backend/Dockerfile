@@ -8,11 +8,15 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the backend application code
+# Copy the entrypoint script and the rest of the application code
+COPY entrypoint.sh .
 COPY ./app ./app
+
+# Make the entrypoint script executable
+RUN chmod +x /app/entrypoint.sh
 
 # Expose the port the app runs on
 EXPOSE 10000
 
-# The command to run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "10000"] 
+# Run the entrypoint script
+ENTRYPOINT ["/app/entrypoint.sh"] 
