@@ -1,11 +1,12 @@
 databases:
   - name: goodwill_db
-    plan: free
+    plan: starter
 
 services:
   - type: web
     name: backend
     env: docker
+    plan: starter
     rootDir: backend
     dockerfilePath: ./Dockerfile
     envVars:
@@ -14,11 +15,12 @@ services:
           name: goodwill_db
           property: connectionString
       - key: OPENAI_API_KEY
-        sync: false # Ensures you will be prompted for this value in the Render dashboard
+        sync: false
 
   - type: web
     name: frontend
     env: node
+    plan: starter
     rootDir: frontend
     buildCommand: npm install && npm run build
     startCommand: npm start
@@ -27,4 +29,4 @@ services:
         fromService:
           type: web
           name: backend
-          property: url 
+          property: hostport 
