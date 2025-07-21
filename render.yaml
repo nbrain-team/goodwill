@@ -1,6 +1,6 @@
 databases:
   - name: goodwill_db
-    plan: free
+    plan: starter
 
 services:
   - type: web
@@ -21,11 +21,5 @@ services:
     name: frontend
     env: node
     plan: starter
-    buildCommand: cd frontend && npm install && npm run build
-    startCommand: cd frontend && npm start
-    envVars:
-      - key: NEXT_PUBLIC_BACKEND_URL
-        fromService:
-          type: web
-          name: backend
-          property: hostport 
+    buildCommand: npm install --prefix frontend && npm run build --prefix frontend
+    startCommand: npm start --prefix frontend 

@@ -17,15 +17,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const getBackendUrl = () => {
-    const rawUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-    if (rawUrl && !rawUrl.startsWith('http')) {
-      return `https://${rawUrl}`;
-    }
-    return rawUrl || 'http://localhost:8000';
-  };
-  
-  const backendUrl = getBackendUrl();
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
   const fetchAuctions = async () => {
     try {
