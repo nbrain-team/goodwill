@@ -1,6 +1,12 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
+
+from app.database import engine, Base, get_db
+from app.models.auction import Auction
 from app.services.scraper import main as run_scraper
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
@@ -23,6 +29,22 @@ def read_root():
     return {"message": "Welcome to the Auction Analysis Agent"}
 
 @app.post("/scrape")
-async def scrape_auctions():
-    data = run_scraper()
-    return {"auctions": data} 
+def scrape_auctions(db: Session = Depends(get_db)):
+    scraped_data = run_scraper()
+    
+    for item in scraped_data:
+        # Check if the auction already exists
+        exists = db.query(Auction).filter(Auction.auction_url == item['auction_url']).first()
+        if not exists:
+            db_auction = Auction(**item)
+            db.add(db_auction)
+    
+    db.commit()
+    
+    auctions = db.query(Auction).all()
+    return {"auctions": auctions}
+
+@app.get("/auctions")
+def get_auctions(db: Session = Depends(get_db)):
+    auctions = db.query(Auction).all()
+    return {"auctions": auctions} 
