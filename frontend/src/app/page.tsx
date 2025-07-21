@@ -79,42 +79,44 @@ export default function Home() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center p-24 bg-gray-900 text-white">
-      <h1 className="text-4xl font-bold mb-8">Auction Analysis Agent</h1>
-      <button
-        onClick={handleScrape}
-        disabled={isLoading}
-        className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:bg-gray-500"
-      >
-        {isLoading ? 'Scraping...' : 'Scrape Auctions'}
-      </button>
+    <main style={{ fontFamily: 'sans-serif', padding: '2rem', backgroundColor: '#111', color: '#eee' }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+        <h1 style={{ fontSize: '2rem' }}>Auction Analysis Agent</h1>
+        <button
+          onClick={handleScrape}
+          disabled={isLoading}
+          style={{ padding: '0.5rem 1rem', cursor: 'pointer', backgroundColor: '#0070f3', color: 'white', border: 'none', borderRadius: '5px' }}
+        >
+          {isLoading ? 'Scraping...' : 'Scrape Auctions'}
+        </button>
+      </header>
 
-      {error && <p className="text-red-500 mt-4">{error}</p>}
+      {error && <p style={{ color: 'red' }}>{error}</p>}
 
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-6xl">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
         {auctions.map((auction) => (
-          <div key={auction.id} className="bg-gray-800 p-4 rounded-lg shadow-lg flex flex-col justify-between">
-            <div>
-              <img src={auction.image_url} alt={auction.title} className="w-full h-48 object-cover rounded-md mb-4" />
-              <h2 className="text-xl font-semibold mb-2">{auction.title}</h2>
-              <p className="text-lg font-bold text-green-400 mb-2">{auction.price}</p>
-              {auction.estimated_value && (
-                <p className="text-lg font-bold text-yellow-400 mb-2">Estimated Value: ${auction.estimated_value.toFixed(2)}</p>
-              )}
-              {auction.analysis && (
-                <p className="text-sm text-gray-300 mb-4">{auction.analysis}</p>
-              )}
-            </div>
-            <div className="flex justify-between items-center mt-4">
-                <a href={auction.auction_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
+          <div key={auction.id} style={{ border: '1px solid #333', borderRadius: '8px', padding: '1rem', backgroundColor: '#222' }}>
+            <img src={auction.image_url} alt={auction.title} style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '4px', marginBottom: '1rem' }} />
+            <h2 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>{auction.title}</h2>
+            <p style={{ fontWeight: 'bold', color: '#2ecc71', marginBottom: '0.5rem' }}>{auction.price}</p>
+            {auction.estimated_value && (
+              <p style={{ fontWeight: 'bold', color: '#f1c40f', marginBottom: '0.5rem' }}>
+                Estimated Value: ${auction.estimated_value.toFixed(2)}
+              </p>
+            )}
+            {auction.analysis && (
+              <p style={{ fontSize: '0.875rem', color: '#ccc', marginBottom: '1rem' }}>{auction.analysis}</p>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
+              <a href={auction.auction_url} target="_blank" rel="noopener noreferrer" style={{ color: '#3498db' }}>
                 View Auction
-                </a>
-                <button 
+              </a>
+              <button
                 onClick={() => handleAnalyze(auction.id)}
-                className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-1 px-3 rounded"
-                >
+                style={{ padding: '0.25rem 0.75rem', cursor: 'pointer', backgroundColor: '#8e44ad', color: 'white', border: 'none', borderRadius: '5px' }}
+              >
                 Analyze
-                </button>
+              </button>
             </div>
           </div>
         ))}
