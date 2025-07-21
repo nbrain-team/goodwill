@@ -2,7 +2,7 @@ services:
   - type: web
     name: backend
     env: python
-    repo: https://github.com/Demichele/Goodwill_Listing_Tool.git # Replace with your repo URL
+    repo: https://github.com/nbrain-team/goodwill.git # Replace with your repo URL
     region: oregon
     plan: free
     branch: main
@@ -18,7 +18,7 @@ services:
   - type: web
     name: frontend
     env: node
-    repo: https://github.com/Demichele/Goodwill_Listing_Tool.git # Replace with your repo URL
+    repo: https://github.com/nbrain-team/goodwill.git # Replace with your repo URL
     region: oregon
     plan: free
     branch: main
