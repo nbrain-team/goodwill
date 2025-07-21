@@ -11,6 +11,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the backend application code
 COPY ./app ./app
 
-# The command to run the application will be specified in render.yaml
-# But we can add a default command here for local testing
+# Expose the port the app runs on
+EXPOSE 10000
+
+# The command to run the application
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "10000"] 
