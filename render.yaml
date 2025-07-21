@@ -18,9 +18,16 @@ services:
     name: frontend
     env: node
     rootDir: frontend
-    buildCommand: ls -la && npm install && npm run build
+    buildCommand: npm install && npm run build
     startCommand: next start -p $PORT
     envVars:
+      - key: NEXT_PUBLIC_BACKEND_URL
+        fromService:
+          type: web
+          name: backend
+          property: url
+
+    build_env_vars:
       - key: NEXT_PUBLIC_BACKEND_URL
         fromService:
           type: web
