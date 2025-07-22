@@ -32,15 +32,10 @@ with engine.connect() as conn:
 
 app = FastAPI()
 
-# Allow CORS for the frontend
-origins = [
-    "http://localhost:3000",  # Next.js default port
-    "https://*.onrender.com", # Allow all onrender.com subdomains
-]
-
+# Configure CORS - be more permissive for now
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],  # Allow all origins for now
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -52,24 +47,40 @@ def read_root():
 
 @app.post("/scrape")
 def scrape_auctions(db: Session = Depends(get_db)):
-    scraped_data = run_scraper()
-    
-    for item in scraped_data:
-        # Check if the auction already exists
-        exists = db.query(Auction).filter(Auction.auction_url == item['auction_url']).first()
-        if not exists:
-            db_auction = Auction(**item)
-            db.add(db_auction)
-    
-    db.commit()
-    
-    auctions = db.query(Auction).all()
-    return {"auctions": auctions}
+    try:
+        print("Starting scrape...")
+        scraped_data = run_scraper()
+        print(f"Scraped {len(scraped_data)} items")
+        
+        new_items = 0
+        for item in scraped_data:
+            # Check if the auction already exists
+            exists = db.query(Auction).filter(Auction.auction_url == item['auction_url']).first()
+            if not exists:
+                db_auction = Auction(**item)
+                db.add(db_auction)
+                new_items += 1
+        
+        db.commit()
+        print(f"Added {new_items} new items to database")
+        
+        auctions = db.query(Auction).all()
+        return {"auctions": auctions}
+    except Exception as e:
+        print(f"Error during scrape: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/auctions")
 def get_auctions(db: Session = Depends(get_db)):
-    auctions = db.query(Auction).all()
-    return {"auctions": auctions}
+    try:
+        print("Fetching auctions from database...")
+        auctions = db.query(Auction).all()
+        print(f"Found {len(auctions)} auctions")
+        return {"auctions": auctions}
+    except Exception as e:
+        print(f"Error fetching auctions: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/analyze/{auction_id}")
 def analyze_auction(auction_id: int, db: Session = Depends(get_db)):
