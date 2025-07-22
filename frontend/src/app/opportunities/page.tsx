@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Title, Grid, Card, Image, Text, Badge, Skeleton, Group, ActionIcon, Button } from '@mantine/core';
+import { Title, Grid, Card, Image, Text, Badge, Skeleton, Group, ActionIcon } from '@mantine/core';
 import { AppLayout } from '@/components/AppLayout';
+import { AuctionModal } from '@/components/AuctionModal';
 import { IconBookmark, IconBookmarkFilled } from '@tabler/icons-react';
 
 interface Auction {
@@ -20,6 +21,8 @@ export default function OpportunitiesPage() {
   const [auctions, setAuctions] = useState<Auction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedAuction, setSelectedAuction] = useState<Auction | null>(null);
+  const [modalOpened, setModalOpened] = useState(false);
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
@@ -41,15 +44,24 @@ export default function OpportunitiesPage() {
     fetchOpportunities();
   }, [fetchOpportunities]);
   
-    const handleToggleWatchlist = async (auctionId: number) => {
+  const handleToggleWatchlist = async (auctionId: number) => {
     try {
       const response = await fetch(`${backendUrl}/watchlist/${auctionId}`, { method: 'POST' });
       if (!response.ok) throw new Error('Failed to update watchlist');
       const updatedAuction = await response.json();
       setAuctions(auctions.map(a => a.id === auctionId ? updatedAuction : a));
+      // Update modal auction if it's the same one
+      if (selectedAuction && selectedAuction.id === auctionId) {
+        setSelectedAuction(updatedAuction);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     }
+  };
+
+  const openAuctionDetails = (auction: Auction) => {
+    setSelectedAuction(auction);
+    setModalOpened(true);
   };
 
   return (
@@ -58,6 +70,13 @@ export default function OpportunitiesPage() {
       <Text mb="xl">Auctions where the estimated value is at least 50% greater than the current price.</Text>
 
       {error && <Text c="red.6">{error}</Text>}
+
+      <AuctionModal
+        auction={selectedAuction}
+        opened={modalOpened}
+        onClose={() => setModalOpened(false)}
+        onToggleWatchlist={handleToggleWatchlist}
+      />
 
       <Grid>
         {isLoading ? (
@@ -71,14 +90,28 @@ export default function OpportunitiesPage() {
         ) : (
           auctions.map((auction) => (
             <Grid.Col span={{ base: 12, md: 6, lg: 4 }} key={auction.id}>
-              <Card shadow="sm" padding="lg" radius="md" withBorder>
+              <Card 
+                shadow="sm" 
+                padding="lg" 
+                radius="md" 
+                withBorder
+                style={{ cursor: 'pointer' }}
+                onClick={() => openAuctionDetails(auction)}
+              >
                 <Card.Section>
                   <Image src={auction.image_url} height={160} alt={auction.title} />
                 </Card.Section>
 
                 <Group justify="space-between" mt="md" mb="xs">
                   <Text fw={500} lineClamp={2}>{auction.title}</Text>
-                   <ActionIcon variant="subtle" color="gray" onClick={() => handleToggleWatchlist(auction.id)}>
+                  <ActionIcon 
+                    variant="subtle" 
+                    color="gray" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleWatchlist(auction.id);
+                    }}
+                  >
                     {auction.is_watchlisted ? <IconBookmarkFilled /> : <IconBookmark />}
                   </ActionIcon>
                 </Group>
@@ -95,12 +128,6 @@ export default function OpportunitiesPage() {
                 <Text size="sm" c="dimmed" mt="sm" lineClamp={3}>
                   {auction.analysis || 'No analysis yet.'}
                 </Text>
-                
-                <Group mt="md">
-                  <Button component="a" href={auction.auction_url} target="_blank" variant="light" color="blue" fullWidth>
-                    View Auction
-                  </Button>
-                </Group>
               </Card>
             </Grid.Col>
           ))
