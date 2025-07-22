@@ -9,6 +9,7 @@ from app.services.scraper import main as run_scraper
 from app.services.analysis import analyze_auction_item
 from app.services.detail_scraper import scrape_auction_details
 from app.services.utils import parse_price
+from app.services.price_research import price_research
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -140,6 +141,32 @@ def analyze_auction(auction_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         print(f"Error analyzing auction: {e}")
         db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/market-research/{auction_id}")
+def get_market_research(auction_id: int, db: Session = Depends(get_db)):
+    """
+    Get market research data for a specific auction
+    """
+    try:
+        db_auction = db.query(Auction).filter(Auction.id == auction_id).first()
+        if not db_auction:
+            raise HTTPException(status_code=404, detail="Auction not found")
+        
+        print(f"Getting market research for: {db_auction.title}")
+        research_data = price_research.research_item_value(
+            db_auction.title, 
+            db_auction.description
+        )
+        
+        return {
+            "auction_id": auction_id,
+            "title": db_auction.title,
+            "market_research": research_data
+        }
+        
+    except Exception as e:
+        print(f"Error getting market research: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/opportunities")
