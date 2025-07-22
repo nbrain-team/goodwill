@@ -7,28 +7,39 @@ from app.database import engine, Base, get_db
 from app.models.auction import Auction
 from app.services.scraper import main as run_scraper
 from app.services.analysis import analyze_auction_item
+from app.services.detail_scraper import scrape_auction_details
 from app.services.utils import parse_price
 
 # Create tables
 Base.metadata.create_all(bind=engine)
 
-# Add migration for is_watchlisted column if it doesn't exist
+# Add migrations for new columns
 with engine.connect() as conn:
     try:
-        # Check if column exists
-        result = conn.execute(text("""
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name='auctions' AND column_name='is_watchlisted'
-        """))
-        if not result.fetchone():
-            # Add the column if it doesn't exist
-            conn.execute(text("ALTER TABLE auctions ADD COLUMN is_watchlisted BOOLEAN DEFAULT FALSE"))
-            conn.commit()
+        # Check and add new columns if they don't exist
+        columns_to_add = [
+            ("is_watchlisted", "BOOLEAN DEFAULT FALSE"),
+            ("description", "TEXT"),
+            ("all_images", "JSON"),
+            ("num_bids", "VARCHAR"),
+            ("seller", "VARCHAR"),
+            ("item_details", "JSON"),
+            ("details_scraped", "BOOLEAN DEFAULT FALSE")
+        ]
+        
+        for column_name, column_type in columns_to_add:
+            result = conn.execute(text(f"""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name='auctions' AND column_name='{column_name}'
+            """))
+            if not result.fetchone():
+                conn.execute(text(f"ALTER TABLE auctions ADD COLUMN {column_name} {column_type}"))
+                print(f"Added column: {column_name}")
+        
+        conn.commit()
     except Exception as e:
         print(f"Migration check failed: {e}")
-        # If the check fails, it might be because the table doesn't exist yet
-        # In that case, the create_all above will create it with the column
 
 app = FastAPI()
 
@@ -84,18 +95,52 @@ def get_auctions(db: Session = Depends(get_db)):
 
 @app.post("/analyze/{auction_id}")
 def analyze_auction(auction_id: int, db: Session = Depends(get_db)):
-    db_auction = db.query(Auction).filter(Auction.id == auction_id).first()
-    if not db_auction:
-        raise HTTPException(status_code=404, detail="Auction not found")
+    try:
+        db_auction = db.query(Auction).filter(Auction.id == auction_id).first()
+        if not db_auction:
+            raise HTTPException(status_code=404, detail="Auction not found")
 
-    estimated_value, analysis = analyze_auction_item(db_auction.title, db_auction.image_url)
+        # First, scrape detailed information if we haven't already
+        if not db_auction.details_scraped:
+            print(f"Scraping detailed information for auction {auction_id}")
+            details = scrape_auction_details(db_auction.auction_url)
+            
+            if details:
+                # Update the auction with detailed information
+                if 'description_text' in details:
+                    db_auction.description = details['description_text']
+                if 'all_images' in details:
+                    db_auction.all_images = details['all_images']
+                if 'num_bids' in details:
+                    db_auction.num_bids = details['num_bids']
+                if 'seller' in details:
+                    db_auction.seller = details['seller']
+                if 'item_details' in details:
+                    db_auction.item_details = details['item_details']
+                
+                db_auction.details_scraped = True
+                db.commit()
+                print(f"Updated auction with detailed information. Images: {len(details.get('all_images', []))}")
 
-    db_auction.estimated_value = estimated_value
-    db_auction.analysis = analysis
-    db.commit()
-    db.refresh(db_auction)
-    
-    return db_auction
+        # Now analyze with all available information
+        print(f"Analyzing auction with {len(db_auction.all_images) if db_auction.all_images else 1} images")
+        estimated_value, analysis = analyze_auction_item(
+            db_auction.title, 
+            db_auction.image_url,
+            description=db_auction.description,
+            all_images=db_auction.all_images
+        )
+
+        db_auction.estimated_value = estimated_value
+        db_auction.analysis = analysis
+        db.commit()
+        db.refresh(db_auction)
+        
+        return db_auction
+    except Exception as e:
+        print(f"Error analyzing auction: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/opportunities")
 def get_opportunities(db: Session = Depends(get_db)):
