@@ -6,6 +6,7 @@ from app.database import engine, Base, get_db
 from app.models.auction import Auction
 from app.services.scraper import main as run_scraper
 from app.services.analysis import analyze_auction_item
+from app.services.utils import parse_price
 
 Base.metadata.create_all(bind=engine)
 
@@ -64,6 +65,22 @@ def analyze_auction(auction_id: int, db: Session = Depends(get_db)):
     db.refresh(db_auction)
     
     return db_auction
+
+@app.get("/opportunities")
+def get_opportunities(db: Session = Depends(get_db)):
+    all_auctions = db.query(Auction).filter(Auction.estimated_value != None).all()
+    
+    opportunities = []
+    for auction in all_auctions:
+        current_price = parse_price(auction.price)
+        if current_price is None or auction.estimated_value is None:
+            continue
+            
+        # Define an opportunity as estimated value being > 50% of current price
+        if auction.estimated_value > (current_price * 1.5):
+            opportunities.append(auction)
+            
+    return {"auctions": opportunities}
 
 @app.post("/watchlist/{auction_id}")
 def toggle_watchlist(auction_id: int, db: Session = Depends(get_db)):
