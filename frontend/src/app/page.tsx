@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Button, Title, Grid, Card, Image, Text, Badge, Skeleton, Group, ActionIcon } from '@mantine/core';
+import { useState, useEffect, useCallback } from 'react';
+import { Button, Grid, Card, Image, Text, Badge, Skeleton, Group, ActionIcon } from '@mantine/core';
 import { AppLayout } from '@/components/AppLayout';
 import { IconBookmark, IconBookmarkFilled } from '@tabler/icons-react';
 
@@ -24,7 +24,7 @@ export default function Home() {
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
-  const fetchAuctions = async () => {
+  const fetchAuctions = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch(`${backendUrl}/auctions`);
@@ -36,11 +36,11 @@ export default function Home() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [backendUrl]);
 
   useEffect(() => {
     fetchAuctions();
-  }, []);
+  }, [fetchAuctions]);
 
   const handleScrape = async () => {
     setIsLoading(true);

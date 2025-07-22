@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Title, Grid, Card, Image, Text, Badge, Skeleton, Group, ActionIcon, Button } from '@mantine/core';
 import { AppLayout } from '@/components/AppLayout';
 import { IconBookmark, IconBookmarkFilled } from '@tabler/icons-react';
@@ -23,7 +23,7 @@ export default function OpportunitiesPage() {
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
-  const fetchOpportunities = async () => {
+  const fetchOpportunities = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch(`${backendUrl}/opportunities`);
@@ -35,11 +35,11 @@ export default function OpportunitiesPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [backendUrl]);
 
   useEffect(() => {
     fetchOpportunities();
-  }, []);
+  }, [fetchOpportunities]);
   
     const handleToggleWatchlist = async (auctionId: number) => {
     try {

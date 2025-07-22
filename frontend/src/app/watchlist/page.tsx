@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Title, Grid, Card, Image, Text, Badge, Skeleton, Group, ActionIcon, Button } from '@mantine/core';
 import { AppLayout } from '@/components/AppLayout';
 import { IconBookmark, IconBookmarkFilled } from '@tabler/icons-react';
@@ -23,7 +23,7 @@ export default function WatchlistPage() {
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
-  const fetchAuctions = async () => {
+  const fetchAuctions = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch(`${backendUrl}/auctions`);
@@ -35,17 +35,16 @@ export default function WatchlistPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [backendUrl]);
 
   useEffect(() => {
     fetchAuctions();
-  }, []);
+  }, [fetchAuctions]);
 
   const handleToggleWatchlist = async (auctionId: number) => {
     try {
       const response = await fetch(`${backendUrl}/watchlist/${auctionId}`, { method: 'POST' });
       if (!response.ok) throw new Error('Failed to update watchlist');
-      const updatedAuction = await response.json();
       // Refetch all auctions to ensure data is consistent
       fetchAuctions();
     } catch (err) {
@@ -69,7 +68,7 @@ export default function WatchlistPage() {
             </Grid.Col>
           ))
         ) : watchlistedAuctions.length === 0 ? (
-          <Text>You haven't added any auctions to your watchlist yet.</Text>
+          <Text>You haven&apos;t added any auctions to your watchlist yet.</Text>
         ) : (
           watchlistedAuctions.map((auction) => (
             <Grid.Col span={{ base: 12, md: 6, lg: 4 }} key={auction.id}>
