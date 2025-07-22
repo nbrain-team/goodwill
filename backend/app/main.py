@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from app.database import engine, Base, get_db
 from app.models.auction import Auction
@@ -8,7 +9,26 @@ from app.services.scraper import main as run_scraper
 from app.services.analysis import analyze_auction_item
 from app.services.utils import parse_price
 
+# Create tables
 Base.metadata.create_all(bind=engine)
+
+# Add migration for is_watchlisted column if it doesn't exist
+with engine.connect() as conn:
+    try:
+        # Check if column exists
+        result = conn.execute(text("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name='auctions' AND column_name='is_watchlisted'
+        """))
+        if not result.fetchone():
+            # Add the column if it doesn't exist
+            conn.execute(text("ALTER TABLE auctions ADD COLUMN is_watchlisted BOOLEAN DEFAULT FALSE"))
+            conn.commit()
+    except Exception as e:
+        print(f"Migration check failed: {e}")
+        # If the check fails, it might be because the table doesn't exist yet
+        # In that case, the create_all above will create it with the column
 
 app = FastAPI()
 
