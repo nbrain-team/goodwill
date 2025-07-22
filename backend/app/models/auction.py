@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float
+from sqlalchemy import Column, Integer, String, Float, Boolean
 from app.database import Base
 
 class Auction(Base):
@@ -10,4 +10,5 @@ class Auction(Base):
     image_url = Column(String)
     auction_url = Column(String, unique=True, index=True)
     estimated_value = Column(Float, nullable=True)
-    analysis = Column(String, nullable=True) 
+    analysis = Column(String, nullable=True)
+    is_watchlisted = Column(Boolean, default=False) 

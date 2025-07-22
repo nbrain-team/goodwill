@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Button, Title, Grid, Card, Image, Text, Badge, Skeleton, Group } from '@mantine/core';
+import { Button, Title, Grid, Card, Image, Text, Badge, Skeleton, Group, ActionIcon } from '@mantine/core';
 import { AppLayout } from '@/components/AppLayout';
+import { IconBookmark, IconBookmarkFilled } from '@tabler/icons-react';
 
 interface Auction {
   id: number;
@@ -12,6 +13,7 @@ interface Auction {
   auction_url: string;
   estimated_value: number | null;
   analysis: string | null;
+  is_watchlisted: boolean;
 }
 
 export default function Home() {
@@ -69,6 +71,17 @@ export default function Home() {
     }
   };
 
+  const handleToggleWatchlist = async (auctionId: number) => {
+    try {
+      const response = await fetch(`${backendUrl}/watchlist/${auctionId}`, { method: 'POST' });
+      if (!response.ok) throw new Error('Failed to update watchlist');
+      const updatedAuction = await response.json();
+      setAuctions(auctions.map(a => a.id === auctionId ? updatedAuction : a));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+    }
+  };
+
   return (
     <AppLayout>
       <Group mb="xl">
@@ -99,18 +112,22 @@ export default function Home() {
                 </Card.Section>
 
                 <Group justify="space-between" mt="md" mb="xs">
-                  <Text fw={500}>{auction.title}</Text>
-                  <Badge color="pink">{auction.price}</Badge>
+                  <Text fw={500} lineClamp={2}>{auction.title}</Text>
+                  <ActionIcon variant="subtle" color="gray" onClick={() => handleToggleWatchlist(auction.id)}>
+                    {auction.is_watchlisted ? <IconBookmarkFilled /> : <IconBookmark />}
+                  </ActionIcon>
                 </Group>
+                
+                <Badge color="pink">{auction.price}</Badge>
 
                 {auction.estimated_value && (
-                  <Group>
+                  <Group mt="sm">
                     <Text fw={700}>Estimated Value:</Text>
                     <Badge color="yellow">${auction.estimated_value.toFixed(2)}</Badge>
                   </Group>
                 )}
 
-                <Text size="sm" c="dimmed" mt="sm">
+                <Text size="sm" c="dimmed" mt="sm" lineClamp={3}>
                   {auction.analysis || 'No analysis yet.'}
                 </Text>
                 

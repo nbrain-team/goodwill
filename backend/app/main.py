@@ -63,4 +63,16 @@ def analyze_auction(auction_id: int, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_auction)
     
+    return db_auction
+
+@app.post("/watchlist/{auction_id}")
+def toggle_watchlist(auction_id: int, db: Session = Depends(get_db)):
+    db_auction = db.query(Auction).filter(Auction.id == auction_id).first()
+    if not db_auction:
+        raise HTTPException(status_code=404, detail="Auction not found")
+
+    db_auction.is_watchlisted = not db_auction.is_watchlisted
+    db.commit()
+    db.refresh(db_auction)
+    
     return db_auction 
