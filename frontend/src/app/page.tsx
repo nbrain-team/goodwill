@@ -15,6 +15,11 @@ interface Auction {
   estimated_value: number | null;
   analysis: string | null;
   is_watchlisted: boolean;
+  all_images?: string[];
+  description?: string;
+  seller?: string;
+  num_bids?: string;
+  item_details?: any;
 }
 
 export default function Home() {
