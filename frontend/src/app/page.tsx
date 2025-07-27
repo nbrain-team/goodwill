@@ -19,7 +19,7 @@ interface Auction {
   description?: string;
   seller?: string;
   num_bids?: string;
-  item_details?: any;
+  item_details?: Record<string, unknown>;
 }
 
 export default function Home() {

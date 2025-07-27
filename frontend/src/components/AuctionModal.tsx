@@ -18,7 +18,7 @@ interface Auction {
   description?: string;
   seller?: string;
   num_bids?: string;
-  item_details?: any;
+  item_details?: Record<string, unknown>;
 }
 
 interface AuctionModalProps {
@@ -28,22 +28,28 @@ interface AuctionModalProps {
   onToggleWatchlist: (auctionId: number) => void;
 }
 
+interface ParsedItem {
+  description: string;
+  value: number;
+}
+
 export function AuctionModal({ auction, opened, onClose, onToggleWatchlist }: AuctionModalProps) {
   const [selectedImage, setSelectedImage] = useState(0);
 
-  if (!auction) return null;
-
-  const allImages = auction.all_images && auction.all_images.length > 0 
-    ? auction.all_images 
-    : [auction.image_url];
+  const allImages = useMemo(() => {
+    if (!auction) return [];
+    return auction.all_images && auction.all_images.length > 0 
+      ? auction.all_images 
+      : [auction.image_url];
+  }, [auction]);
 
   // Parse analysis for structured data
   const parsedAnalysis = useMemo(() => {
-    if (!auction.analysis) return { items: [], summary: auction.analysis || '' };
+    if (!auction || !auction.analysis) return { items: [], summary: '' };
     
     const lines = auction.analysis.split('\n');
-    const items: any[] = [];
-    let summary = [];
+    const items: ParsedItem[] = [];
+    const summary: string[] = [];
     let inItemSection = false;
     
     for (const line of lines) {
@@ -65,7 +71,9 @@ export function AuctionModal({ auction, opened, onClose, onToggleWatchlist }: Au
     }
     
     return { items, summary: summary.join('\n') };
-  }, [auction.analysis]);
+  }, [auction]);
+
+  if (!auction) return null;
 
   return (
     <Modal
@@ -178,7 +186,7 @@ export function AuctionModal({ auction, opened, onClose, onToggleWatchlist }: Au
             {/* Description */}
             {auction.description && (
               <Paper shadow="xs" p="md">
-                <Text fw={700} mb="sm">Seller's Description</Text>
+                <Text fw={700} mb="sm">Seller&apos;s Description</Text>
                 <ScrollArea h={200}>
                   <Text size="sm">{auction.description}</Text>
                 </ScrollArea>
