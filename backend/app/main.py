@@ -143,6 +143,77 @@ def analyze_auction(auction_id: int, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/analyze/batch")
+def analyze_batch(auction_ids: list[int], db: Session = Depends(get_db)):
+    """
+    Analyze multiple auctions in batch
+    """
+    try:
+        results = []
+        errors = []
+        
+        for auction_id in auction_ids:
+            try:
+                db_auction = db.query(Auction).filter(Auction.id == auction_id).first()
+                if not db_auction:
+                    errors.append({"id": auction_id, "error": "Auction not found"})
+                    continue
+
+                # First, scrape detailed information if we haven't already
+                if not db_auction.details_scraped:
+                    print(f"Scraping detailed information for auction {auction_id}")
+                    details = scrape_auction_details(db_auction.auction_url)
+                    
+                    if details:
+                        # Update the auction with detailed information
+                        if 'description_text' in details:
+                            db_auction.description = details['description_text']
+                        if 'all_images' in details:
+                            db_auction.all_images = details['all_images']
+                        if 'num_bids' in details:
+                            db_auction.num_bids = details['num_bids']
+                        if 'seller' in details:
+                            db_auction.seller = details['seller']
+                        if 'item_details' in details:
+                            db_auction.item_details = details['item_details']
+                        
+                        db_auction.details_scraped = True
+                        db.commit()
+                        print(f"Updated auction with detailed information. Images: {len(details.get('all_images', []))}")
+
+                # Now analyze with all available information
+                print(f"Analyzing auction {auction_id} with {len(db_auction.all_images) if db_auction.all_images else 1} images")
+                estimated_value, analysis = analyze_auction_item(
+                    db_auction.title, 
+                    db_auction.image_url,
+                    description=db_auction.description,
+                    all_images=db_auction.all_images
+                )
+
+                db_auction.estimated_value = estimated_value
+                db_auction.analysis = analysis
+                db.commit()
+                db.refresh(db_auction)
+                
+                results.append(db_auction)
+                
+            except Exception as e:
+                print(f"Error analyzing auction {auction_id}: {e}")
+                errors.append({"id": auction_id, "error": str(e)})
+                continue
+        
+        return {
+            "analyzed": results,
+            "errors": errors,
+            "total_analyzed": len(results),
+            "total_errors": len(errors)
+        }
+        
+    except Exception as e:
+        print(f"Error in batch analysis: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/market-research/{auction_id}")
 def get_market_research(auction_id: int, db: Session = Depends(get_db)):
     """

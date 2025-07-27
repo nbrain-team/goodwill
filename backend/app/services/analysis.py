@@ -21,24 +21,45 @@ def analyze_auction_item(title: str, image_url: str, description: str = None, al
         content_parts = [
             {
                 "type": "text", 
-                "text": f"""Analyze this auction item and provide:
-1. FIRST LINE: A single number representing the estimated fair market value in USD (e.g., 125.50)
-2. SUBSEQUENT LINES: A detailed analysis including:
-   - Item identification (what it is, brand/manufacturer if applicable)
-   - Condition assessment based on the images
-   - Key factors affecting value
-   - Market demand insights
-   - Any hidden value or special features you notice in the images that may not be mentioned in the description
-   
-Based on my market research:
-{_format_market_research(market_data)}
+                "text": f"""Analyze this auction item with EXTREME attention to detail:
 
-Pay special attention to:
-- Details visible in images that might not be in the description
-- Markings, signatures, labels, or stamps
-- Materials and construction quality
-- Any collectible or rare aspects
-- Condition issues or positive attributes
+1. FIRST LINE: A single number representing the estimated fair market value in USD (e.g., 125.50)
+
+2. SUBSEQUENT LINES: Provide an EXHAUSTIVE analysis including:
+
+ITEM IDENTIFICATION:
+- Identify ALL items visible in the images (main item + any bonus/additional items)
+- Brand, manufacturer, model numbers, series names
+- Year/era of manufacture if determinable
+- Authenticity indicators
+
+DETAILED VISUAL INSPECTION:
+- Examine EVERY visible detail in ALL provided images
+- Look for: signatures, stamps, markings, labels, tags, stickers
+- Note serial numbers, copyright dates, edition information
+- Identify materials (metal type, fabric, plastic quality)
+- Check for rare variations, errors, or unique features
+
+CONDITION ASSESSMENT:
+- Rate condition on standard scale (Mint/Near Mint/Excellent/Very Good/Good/Fair/Poor)
+- List ALL visible flaws: scratches, chips, tears, stains, missing parts
+- Note any repairs, restorations, or modifications
+- Assess completeness (missing accessories, manuals, boxes?)
+
+MULTIPLE ITEMS ANALYSIS:
+- If multiple items are shown together, evaluate EACH item separately
+- Identify if this is a lot/bundle and assess total value
+- Note which items drive the most value
+- Look for hidden gems that might be overlooked
+
+VALUE FACTORS:
+- Rarity and collectibility level
+- Current market demand trends
+- Collector interest indicators
+- Investment potential
+
+MARKET RESEARCH INTEGRATION:
+{_format_market_research(market_data)}
 
 Title: {title}"""
             }

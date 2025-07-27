@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Button, Grid, Card, Image, Text, Badge, Skeleton, Group, ActionIcon } from '@mantine/core';
+import { Button, Grid, Card, Image, Text, Badge, Skeleton, Group, ActionIcon, Checkbox, Stack } from '@mantine/core';
 import { AppLayout } from '@/components/AppLayout';
 import { AuctionModal } from '@/components/AuctionModal';
 import { IconBookmark, IconBookmarkFilled } from '@tabler/icons-react';
@@ -21,6 +21,8 @@ export default function Home() {
   const [auctions, setAuctions] = useState<Auction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState<number | null>(null);
+  const [isBatchAnalyzing, setIsBatchAnalyzing] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [selectedAuction, setSelectedAuction] = useState<Auction | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
@@ -78,6 +80,52 @@ export default function Home() {
     }
   };
 
+  const handleBatchAnalyze = async () => {
+    if (selectedIds.size === 0) {
+      setError('Please select items to analyze');
+      return;
+    }
+
+    setIsBatchAnalyzing(true);
+    setError(null);
+    
+    try {
+      const response = await fetch(`${backendUrl}/analyze/batch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(Array.from(selectedIds)),
+      });
+      
+      if (!response.ok) throw new Error('Failed to analyze batch');
+      
+      const result = await response.json();
+      
+      // Update auctions with analyzed results
+      if (result.analyzed && result.analyzed.length > 0) {
+        setAuctions(prevAuctions => 
+          prevAuctions.map(auction => {
+            const analyzed = result.analyzed.find((a: Auction) => a.id === auction.id);
+            return analyzed || auction;
+          })
+        );
+      }
+      
+      // Clear selections after analysis
+      setSelectedIds(new Set());
+      
+      // Show summary
+      if (result.total_errors > 0) {
+        setError(`Analyzed ${result.total_analyzed} items. ${result.total_errors} errors occurred.`);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+    } finally {
+      setIsBatchAnalyzing(false);
+    }
+  };
+
   const handleToggleWatchlist = async (auctionId: number) => {
     try {
       const response = await fetch(`${backendUrl}/watchlist/${auctionId}`, { method: 'POST' });
@@ -98,15 +146,66 @@ export default function Home() {
     setModalOpened(true);
   };
 
+  const toggleSelection = (auctionId: number) => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(auctionId)) {
+        newSet.delete(auctionId);
+      } else {
+        newSet.add(auctionId);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAll = () => {
+    setSelectedIds(new Set(auctions.map(a => a.id)));
+  };
+
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+  };
+
   return (
     <AppLayout>
-      <Group mb="xl">
-        <Button onClick={handleScrape} loading={isLoading}>
-          Scrape for New Auctions
-        </Button>
-      </Group>
+      <Stack gap="md">
+        <Group justify="space-between">
+          <Group>
+            <Button onClick={handleScrape} loading={isLoading}>
+              Scrape for New Auctions
+            </Button>
+            {selectedIds.size > 0 && (
+              <>
+                <Button 
+                  onClick={handleBatchAnalyze} 
+                  loading={isBatchAnalyzing}
+                  color="grape"
+                >
+                  Analyze Selected ({selectedIds.size})
+                </Button>
+                <Button 
+                  onClick={clearSelection}
+                  variant="subtle"
+                  size="sm"
+                >
+                  Clear Selection
+                </Button>
+              </>
+            )}
+          </Group>
+          {auctions.length > 0 && (
+            <Button 
+              onClick={selectedIds.size === auctions.length ? clearSelection : selectAll}
+              variant="subtle"
+              size="sm"
+            >
+              {selectedIds.size === auctions.length ? 'Deselect All' : 'Select All'}
+            </Button>
+          )}
+        </Group>
 
-      {error && <Text c="red.6">{error}</Text>}
+        {error && <Text c="red.6">{error}</Text>}
+      </Stack>
 
       <AuctionModal
         auction={selectedAuction}
@@ -130,9 +229,31 @@ export default function Home() {
                 padding="lg" 
                 radius="md" 
                 withBorder
-                style={{ cursor: 'pointer' }}
+                style={{ 
+                  cursor: 'pointer',
+                  position: 'relative',
+                  border: selectedIds.has(auction.id) ? '2px solid #7950f2' : undefined
+                }}
                 onClick={() => openAuctionDetails(auction)}
               >
+                <Checkbox
+                  checked={selectedIds.has(auction.id)}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    toggleSelection(auction.id);
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    position: 'absolute',
+                    top: 10,
+                    left: 10,
+                    zIndex: 10,
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    borderRadius: 4,
+                    padding: 2
+                  }}
+                />
+                
                 <Card.Section>
                   <Image
                     src={auction.image_url}
@@ -142,7 +263,7 @@ export default function Home() {
                 </Card.Section>
 
                 <Group justify="space-between" mt="md" mb="xs">
-                  <Text fw={500} lineClamp={2}>{auction.title}</Text>
+                  <Text fw={500} lineClamp={2} style={{ paddingLeft: 30 }}>{auction.title}</Text>
                   <ActionIcon 
                     variant="subtle" 
                     color="gray" 
@@ -175,6 +296,7 @@ export default function Home() {
                       handleAnalyze(auction.id);
                     }}
                     loading={isAnalyzing === auction.id}
+                    disabled={isBatchAnalyzing}
                     variant="light" 
                     color="grape" 
                     fullWidth
