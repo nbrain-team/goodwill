@@ -1,8 +1,8 @@
 'use client';
 
-import { Modal, Stack, Image, Group, Badge, Text, ScrollArea, Button, Tabs, Table, Card, SimpleGrid, Title, Divider, Box, Paper } from '@mantine/core';
+import { Modal, Stack, Image, Group, Badge, Text, ScrollArea, Button, Tabs, Table, Card, SimpleGrid, Title, Divider, Box, Paper, Skeleton, Anchor } from '@mantine/core';
 import { IconBookmark, IconBookmarkFilled, IconPhoto, IconAnalyze, IconChartBar } from '@tabler/icons-react';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 
 interface Auction {
@@ -35,6 +35,10 @@ interface ParsedItem {
 
 export function AuctionModal({ auction, opened, onClose, onToggleWatchlist }: AuctionModalProps) {
   const [selectedImage, setSelectedImage] = useState(0);
+  const [marketData, setMarketData] = useState<any>(null);
+  const [loadingMarketData, setLoadingMarketData] = useState(false);
+
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
   const allImages = useMemo(() => {
     if (!auction) return [];
@@ -72,6 +76,29 @@ export function AuctionModal({ auction, opened, onClose, onToggleWatchlist }: Au
     
     return { items, summary: summary.join('\n') };
   }, [auction]);
+
+  // Fetch market research data when modal opens or auction changes
+  useEffect(() => {
+    if (opened && auction && auction.analysis) {
+      fetchMarketData();
+    }
+  }, [opened, auction?.id]);
+
+  const fetchMarketData = async () => {
+    if (!auction) return;
+    
+    setLoadingMarketData(true);
+    try {
+      const response = await fetch(`${backendUrl}/market-research/${auction.id}`);
+      if (!response.ok) throw new Error('Failed to fetch market research');
+      const data = await response.json();
+      setMarketData(data.market_research);
+    } catch (error) {
+      console.error('Error fetching market research:', error);
+    } finally {
+      setLoadingMarketData(false);
+    }
+  };
 
   if (!auction) return null;
 
@@ -245,12 +272,148 @@ export function AuctionModal({ auction, opened, onClose, onToggleWatchlist }: Au
         </Tabs.Panel>
 
         <Tabs.Panel value="market" pt="xs">
-          <Paper shadow="xs" p="md">
-            <Text fw={700} mb="md">Market Research Data</Text>
-            <Text c="dimmed" size="sm">
-              Market data integration coming soon...
-            </Text>
-          </Paper>
+          {loadingMarketData ? (
+            <Stack>
+              <Skeleton height={100} />
+              <Skeleton height={200} />
+              <Skeleton height={150} />
+            </Stack>
+          ) : marketData ? (
+            <Stack>
+              {/* eBay Sold Listings */}
+              {marketData.ebay_data?.num_sold > 0 && (
+                <Paper shadow="xs" p="md">
+                  <Group mb="md">
+                    <Text fw={700}>📊 eBay Sold Listings</Text>
+                    <Badge color="blue">{marketData.ebay_data.num_sold} sold</Badge>
+                  </Group>
+                  
+                  <Table striped>
+                    <Table.Tbody>
+                      <Table.Tr>
+                        <Table.Td fw={600}>Average Sold Price</Table.Td>
+                        <Table.Td>${marketData.ebay_data.average_price?.toFixed(2) || 'N/A'}</Table.Td>
+                      </Table.Tr>
+                      <Table.Tr>
+                        <Table.Td fw={600}>Price Range</Table.Td>
+                        <Table.Td>{marketData.ebay_data.price_range || 'N/A'}</Table.Td>
+                      </Table.Tr>
+                    </Table.Tbody>
+                  </Table>
+
+                  {marketData.ebay_data.recent_sales && marketData.ebay_data.recent_sales.length > 0 && (
+                    <>
+                      <Text fw={600} mt="md" mb="sm">Recent Sales:</Text>
+                      <ScrollArea h={200}>
+                        <Stack gap="xs">
+                          {marketData.ebay_data.recent_sales.slice(0, 5).map((sale: any, idx: number) => (
+                            <Paper key={idx} p="xs" withBorder>
+                              <Group justify="space-between">
+                                <Text size="sm" lineClamp={1}>{sale.title}</Text>
+                                <Badge color="green">${sale.price.toFixed(2)}</Badge>
+                              </Group>
+                              {sale.condition && <Text size="xs" c="dimmed">Condition: {sale.condition}</Text>}
+                              {sale.link && (
+                                <Anchor href={sale.link} target="_blank" size="xs">
+                                  View listing
+                                </Anchor>
+                              )}
+                            </Paper>
+                          ))}
+                        </Stack>
+                      </ScrollArea>
+                    </>
+                  )}
+                </Paper>
+              )}
+
+              {/* Web Search Results */}
+              {marketData.web_results && marketData.web_results.length > 0 && (
+                <Paper shadow="xs" p="md">
+                  <Text fw={700} mb="md">🌐 Web Pricing Research</Text>
+                  <ScrollArea h={200}>
+                    <Stack gap="xs">
+                      {marketData.web_results.slice(0, 5).map((result: any, idx: number) => (
+                        <Paper key={idx} p="xs" withBorder>
+                          <Anchor href={result.link} target="_blank" size="sm" fw={500}>
+                            {result.title}
+                          </Anchor>
+                          <Text size="xs" c="dimmed" mt={4}>{result.snippet}</Text>
+                        </Paper>
+                      ))}
+                    </Stack>
+                  </ScrollArea>
+                </Paper>
+              )}
+
+              {/* Price Summary */}
+              {marketData.price_summary?.status === 'success' && (
+                <Paper shadow="xs" p="md">
+                  <Text fw={700} mb="md">💰 Price Analysis Summary</Text>
+                  <Table>
+                    <Table.Tbody>
+                      <Table.Tr>
+                        <Table.Td fw={600}>Market Value Range</Table.Td>
+                        <Table.Td>{marketData.price_summary.estimated_value_range}</Table.Td>
+                      </Table.Tr>
+                      <Table.Tr>
+                        <Table.Td fw={600}>Average Market Value</Table.Td>
+                        <Table.Td>${marketData.price_summary.average_value?.toFixed(2) || 'N/A'}</Table.Td>
+                      </Table.Tr>
+                      <Table.Tr>
+                        <Table.Td fw={600}>Confidence Level</Table.Td>
+                        <Table.Td>
+                          <Badge color={
+                            marketData.price_summary.confidence === 'high' ? 'green' :
+                            marketData.price_summary.confidence === 'medium' ? 'yellow' : 'red'
+                          }>
+                            {marketData.price_summary.confidence?.toUpperCase()}
+                          </Badge>
+                        </Table.Td>
+                      </Table.Tr>
+                      <Table.Tr>
+                        <Table.Td fw={600}>Data Points</Table.Td>
+                        <Table.Td>{marketData.price_summary.data_points}</Table.Td>
+                      </Table.Tr>
+                    </Table.Tbody>
+                  </Table>
+                </Paper>
+              )}
+
+              {/* Recommendations */}
+              {marketData.recommendations && (
+                <Paper shadow="xs" p="md">
+                  <Text fw={700} mb="md">🎯 Selling Recommendations</Text>
+                  <Table>
+                    <Table.Tbody>
+                      <Table.Tr>
+                        <Table.Td fw={600}>Suggested List Price</Table.Td>
+                        <Table.Td>{marketData.recommendations.list_price}</Table.Td>
+                      </Table.Tr>
+                      <Table.Tr>
+                        <Table.Td fw={600}>Accept Offers Above</Table.Td>
+                        <Table.Td>{marketData.recommendations.accept_offers_above}</Table.Td>
+                      </Table.Tr>
+                      <Table.Tr>
+                        <Table.Td fw={600}>Quick Sale Price</Table.Td>
+                        <Table.Td>{marketData.recommendations.quick_sale_price}</Table.Td>
+                      </Table.Tr>
+                    </Table.Tbody>
+                  </Table>
+                  <Text size="sm" mt="md" c="dimmed">
+                    Strategy: {marketData.recommendations.strategy}
+                  </Text>
+                </Paper>
+              )}
+            </Stack>
+          ) : (
+            <Paper shadow="xs" p="md">
+              <Text fw={700} mb="md">Market Research Data</Text>
+              <Text c="dimmed" size="sm">
+                Analyze this item first to see market research data.
+              </Text>
+            </Paper>
+          )}
         </Tabs.Panel>
       </Tabs>
 

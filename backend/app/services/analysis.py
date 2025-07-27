@@ -33,19 +33,21 @@ CRITICAL INSTRUCTIONS FOR VALUATION:
    - If worth less than current price, suggest lower
    - If worth more than current price, suggest what to pay
 
-2. DETAILED ANALYSIS:
+2. EXTREMELY DETAILED ANALYSIS WITH CITATIONS:
 
 ITEM-BY-ITEM BREAKDOWN (REQUIRED):
 - List EVERY visible item with individual values
-- Format: "Item 1: [Description] - Value: $XX"
+- Format: "Item 1: [Description] - Value: $XX (Source: eBay sold listing avg)"
 - Include items visible in background/partially shown
 - Total lot value = sum of all items
+- CITE YOUR SOURCES for each value estimate
 
 ITEM IDENTIFICATION:
 - Identify ALL items visible in the images (main item + any bonus/additional items)
 - Brand, manufacturer, model numbers, series names
 - Year/era of manufacture if determinable
 - Authenticity indicators
+- Reference similar items from market research
 
 DETAILED VISUAL INSPECTION:
 - Examine EVERY visible detail in ALL provided images
@@ -53,21 +55,31 @@ DETAILED VISUAL INSPECTION:
 - Note serial numbers, copyright dates, edition information
 - Identify materials (metal type, fabric, plastic quality)
 - Check for rare variations, errors, or unique features
+- Compare condition to sold listings
 
 CONDITION ASSESSMENT:
 - Rate condition on standard scale (Mint/Near Mint/Excellent/Very Good/Good/Fair/Poor)
 - List ALL visible flaws: scratches, chips, tears, stains, missing parts
 - Note any repairs, restorations, or modifications
 - Assess completeness (missing accessories, manuals, boxes?)
+- Impact of condition on value vs. market comparables
 
-VALUATION SUMMARY:
-- Current Auction Value: What to pay now
-- Individual Retail Values: What each item sells for separately
-- Total Retail Value: Combined retail value of all items
-- Profit Potential: Difference between auction and retail
+MARKET RESEARCH ANALYSIS:
+{_format_detailed_market_research(market_data)}
 
-MARKET RESEARCH DATA:
-{_format_market_research(market_data)}
+PRICING JUSTIFICATION:
+- Explain WHY you recommend the specific auction value
+- Compare to recent eBay sold prices
+- Factor in current market demand
+- Consider seasonal trends
+- Account for condition relative to comparables
+
+INVESTMENT ANALYSIS:
+- Resale potential and timeline
+- Best platforms to resell (eBay, Etsy, Mercari, etc.)
+- Target buyer demographics
+- Expected profit margin
+- Risks and opportunities
 
 Title: {title}
 Current Auction Price: {current_price_text}"""
@@ -101,19 +113,19 @@ Current Auction Price: {current_price_text}"""
                     "content": """You are an expert auction appraiser who helps buyers determine fair prices at auctions. 
 
 CRITICAL: The FIRST LINE of your response must ALWAYS be a single number - the maximum amount someone should bid/pay for this auction RIGHT NOW. This is NOT the retail value, but what makes sense to pay at auction considering:
-- Current market prices
-- Condition
-- Resale potential
+- Current market prices from actual sold listings
+- Condition relative to comparables
+- Resale potential with specific platform recommendations
 - Competition from other bidders
 
-You must analyze EVERY item visible in photos, even background items, and provide individual valuations. Many valuable items are hidden in lots."""
+You must analyze EVERY item visible in photos, even background items, and provide individual valuations with source citations. Reference specific eBay sold listings, web prices, and market trends. Be extremely detailed and thorough in your analysis."""
                 },
                 {
                     "role": "user",
                     "content": content_parts
                 }
             ],
-            max_tokens=2000,  # Increased from 1000
+            max_tokens=4000,  # Doubled from 2000
         )
         
         content = response.choices[0].message.content.strip()
@@ -199,5 +211,63 @@ def _format_market_research(market_data: dict) -> str:
         for result in market_data['web_results'][:3]:
             if '$' in result.get('snippet', ''):
                 research_text.append(f"  • {result['snippet'][:100]}...")
+    
+    return '\n'.join(research_text) if research_text else "No market data available" 
+
+def _format_detailed_market_research(market_data: dict) -> str:
+    """
+    Format market research data with detailed citations
+    """
+    research_text = []
+    
+    # eBay data with specific examples
+    if market_data['ebay_data'].get('num_sold', 0) > 0:
+        research_text.append(f"\n📊 EBAY SOLD LISTINGS DATA:")
+        research_text.append(f"- Found {market_data['ebay_data']['num_sold']} sold listings")
+        research_text.append(f"- Price range: {market_data['ebay_data']['price_range']}")
+        research_text.append(f"- Average sold price: ${market_data['ebay_data']['average_price']:.2f}")
+        
+        # Recent sales with details
+        if market_data['ebay_data'].get('recent_sales'):
+            research_text.append("\nRECENT EBAY SALES:")
+            for i, sale in enumerate(market_data['ebay_data']['recent_sales'][:5], 1):
+                research_text.append(f"{i}. ${sale['price']:.2f} - {sale['title'][:80]}...")
+                if sale.get('condition'):
+                    research_text.append(f"   Condition: {sale['condition']}")
+                if sale.get('sold_date'):
+                    research_text.append(f"   Sold: {sale['sold_date']}")
+    
+    # Web search results with sources
+    if market_data['web_results']:
+        research_text.append(f"\n🌐 WEB PRICING RESEARCH:")
+        for i, result in enumerate(market_data['web_results'][:5], 1):
+            if '$' in result.get('snippet', ''):
+                research_text.append(f"{i}. {result['title'][:60]}...")
+                research_text.append(f"   Source: {result['link']}")
+                research_text.append(f"   Info: {result['snippet'][:150]}...")
+    
+    # Forum discussions
+    if market_data['forum_discussions']:
+        research_text.append(f"\n💬 COLLECTOR FORUM INSIGHTS:")
+        for i, discussion in enumerate(market_data['forum_discussions'][:3], 1):
+            research_text.append(f"{i}. {discussion['title'][:60]}...")
+            research_text.append(f"   Source: {discussion['link']}")
+            research_text.append(f"   Discussion: {discussion['snippet'][:150]}...")
+    
+    # Price summary with confidence
+    if market_data['price_summary'].get('status') == 'success':
+        research_text.append(f"\n💰 PRICE ANALYSIS SUMMARY:")
+        research_text.append(f"- Market value range: {market_data['price_summary']['estimated_value_range']}")
+        research_text.append(f"- Average market value: ${market_data['price_summary']['average_value']:.2f}")
+        research_text.append(f"- Confidence level: {market_data['price_summary']['confidence'].upper()}")
+        research_text.append(f"- Based on {market_data['price_summary']['data_points']} data points")
+    
+    # Recommendations
+    if market_data['recommendations']:
+        research_text.append(f"\n🎯 SELLING RECOMMENDATIONS:")
+        research_text.append(f"- Suggested list price: {market_data['recommendations']['list_price']}")
+        research_text.append(f"- Accept offers above: {market_data['recommendations']['accept_offers_above']}")
+        research_text.append(f"- Quick sale price: {market_data['recommendations']['quick_sale_price']}")
+        research_text.append(f"- Strategy: {market_data['recommendations']['strategy']}")
     
     return '\n'.join(research_text) if research_text else "No market data available" 
