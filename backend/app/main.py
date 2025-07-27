@@ -2,6 +2,9 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+import time
 
 from app.database import engine, Base, get_db
 from app.models.auction import Auction
@@ -145,64 +148,36 @@ def analyze_auction(auction_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/analyze/batch")
-def analyze_batch(auction_ids: list[int], db: Session = Depends(get_db)):
+async def analyze_batch(auction_ids: list[int], db: Session = Depends(get_db)):
     """
-    Analyze multiple auctions in batch
+    Analyze multiple auctions in batch with concurrent processing
     """
     try:
         results = []
         errors = []
         
-        for auction_id in auction_ids:
-            try:
-                db_auction = db.query(Auction).filter(Auction.id == auction_id).first()
-                if not db_auction:
-                    errors.append({"id": auction_id, "error": "Auction not found"})
-                    continue
-
-                # First, scrape detailed information if we haven't already
-                if not db_auction.details_scraped:
-                    print(f"Scraping detailed information for auction {auction_id}")
-                    details = scrape_auction_details(db_auction.auction_url)
-                    
-                    if details:
-                        # Update the auction with detailed information
-                        if 'description_text' in details:
-                            db_auction.description = details['description_text']
-                        if 'all_images' in details:
-                            db_auction.all_images = details['all_images']
-                        if 'num_bids' in details:
-                            db_auction.num_bids = details['num_bids']
-                        if 'seller' in details:
-                            db_auction.seller = details['seller']
-                        if 'item_details' in details:
-                            db_auction.item_details = details['item_details']
-                        
-                        db_auction.details_scraped = True
-                        db.commit()
-                        print(f"Updated auction with detailed information. Images: {len(details.get('all_images', []))}")
-
-                # Now analyze with all available information
-                print(f"Analyzing auction {auction_id} with {len(db_auction.all_images) if db_auction.all_images else 1} images")
-                estimated_value, analysis = analyze_auction_item(
-                    db_auction.title, 
-                    db_auction.image_url,
-                    description=db_auction.description,
-                    all_images=db_auction.all_images,
-                    current_price=db_auction.price
+        # Create a thread pool for concurrent processing
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            futures = []
+            
+            for auction_id in auction_ids:
+                # Submit each analysis to the thread pool
+                future = executor.submit(
+                    analyze_single_auction, 
+                    auction_id, 
+                    db
                 )
-
-                db_auction.estimated_value = estimated_value
-                db_auction.analysis = analysis
-                db.commit()
-                db.refresh(db_auction)
-                
-                results.append(db_auction)
-                
-            except Exception as e:
-                print(f"Error analyzing auction {auction_id}: {e}")
-                errors.append({"id": auction_id, "error": str(e)})
-                continue
+                futures.append((auction_id, future))
+            
+            # Collect results as they complete
+            for auction_id, future in futures:
+                try:
+                    result = future.result(timeout=120)  # 2 minute timeout per item
+                    if result:
+                        results.append(result)
+                except Exception as e:
+                    print(f"Error analyzing auction {auction_id}: {e}")
+                    errors.append({"id": auction_id, "error": str(e)})
         
         return {
             "analyzed": results,
@@ -213,8 +188,59 @@ def analyze_batch(auction_ids: list[int], db: Session = Depends(get_db)):
         
     except Exception as e:
         print(f"Error in batch analysis: {e}")
-        db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+def analyze_single_auction(auction_id: int, db: Session):
+    """
+    Analyze a single auction (used for concurrent processing)
+    """
+    try:
+        db_auction = db.query(Auction).filter(Auction.id == auction_id).first()
+        if not db_auction:
+            raise ValueError("Auction not found")
+
+        # First, scrape detailed information if we haven't already
+        if not db_auction.details_scraped:
+            print(f"Scraping detailed information for auction {auction_id}")
+            details = scrape_auction_details(db_auction.auction_url)
+            
+            if details:
+                # Update the auction with detailed information
+                if 'description_text' in details:
+                    db_auction.description = details['description_text']
+                if 'all_images' in details:
+                    db_auction.all_images = details['all_images']
+                if 'num_bids' in details:
+                    db_auction.num_bids = details['num_bids']
+                if 'seller' in details:
+                    db_auction.seller = details['seller']
+                if 'item_details' in details:
+                    db_auction.item_details = details['item_details']
+                
+                db_auction.details_scraped = True
+                db.commit()
+                print(f"Updated auction with detailed information. Images: {len(details.get('all_images', []))}")
+
+        # Now analyze with all available information
+        print(f"Analyzing auction {auction_id} with {len(db_auction.all_images) if db_auction.all_images else 1} images")
+        estimated_value, analysis = analyze_auction_item(
+            db_auction.title, 
+            db_auction.image_url,
+            description=db_auction.description,
+            all_images=db_auction.all_images,
+            current_price=db_auction.price
+        )
+
+        db_auction.estimated_value = estimated_value
+        db_auction.analysis = analysis
+        db.commit()
+        db.refresh(db_auction)
+        
+        return db_auction
+        
+    except Exception as e:
+        print(f"Error in analyze_single_auction for {auction_id}: {e}")
+        raise
 
 @app.get("/market-research/{auction_id}")
 def get_market_research(auction_id: int, db: Session = Depends(get_db)):

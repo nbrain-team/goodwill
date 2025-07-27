@@ -25,7 +25,7 @@ interface Auction {
 export default function Home() {
   const [auctions, setAuctions] = useState<Auction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState<number | null>(null);
+  const [analyzingIds, setAnalyzingIds] = useState<Set<number>>(new Set());
   const [isBatchAnalyzing, setIsBatchAnalyzing] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(null);
@@ -68,12 +68,14 @@ export default function Home() {
   };
 
   const handleAnalyze = async (auctionId: number) => {
-    setIsAnalyzing(auctionId);
+    // Add to analyzing set
+    setAnalyzingIds(prev => new Set(prev).add(auctionId));
+    
     try {
       const response = await fetch(`${backendUrl}/analyze/${auctionId}`, { method: 'POST' });
       if (!response.ok) throw new Error('Failed to analyze auction');
       const updatedAuction = await response.json();
-      setAuctions(auctions.map(a => a.id === auctionId ? updatedAuction : a));
+      setAuctions(prevAuctions => prevAuctions.map(a => a.id === auctionId ? updatedAuction : a));
       // Update modal auction if it's the same one
       if (selectedAuction && selectedAuction.id === auctionId) {
         setSelectedAuction(updatedAuction);
@@ -81,7 +83,12 @@ export default function Home() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
-      setIsAnalyzing(null);
+      // Remove from analyzing set
+      setAnalyzingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(auctionId);
+        return newSet;
+      });
     }
   };
 
@@ -197,6 +204,11 @@ export default function Home() {
                 </Button>
               </>
             )}
+            {analyzingIds.size > 0 && (
+              <Badge color="blue" size="lg">
+                Analyzing {analyzingIds.size} item{analyzingIds.size > 1 ? 's' : ''}...
+              </Badge>
+            )}
           </Group>
           {auctions.length > 0 && (
             <Button 
@@ -300,7 +312,7 @@ export default function Home() {
                       e.stopPropagation();
                       handleAnalyze(auction.id);
                     }}
-                    loading={isAnalyzing === auction.id}
+                    loading={analyzingIds.has(auction.id)}
                     disabled={isBatchAnalyzing}
                     variant="light" 
                     color="grape" 
