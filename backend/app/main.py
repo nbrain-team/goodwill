@@ -129,7 +129,8 @@ def analyze_auction(auction_id: int, db: Session = Depends(get_db)):
             db_auction.title, 
             db_auction.image_url,
             description=db_auction.description,
-            all_images=db_auction.all_images
+            all_images=db_auction.all_images,
+            current_price=db_auction.price
         )
 
         db_auction.estimated_value = estimated_value
@@ -187,7 +188,8 @@ def analyze_batch(auction_ids: list[int], db: Session = Depends(get_db)):
                     db_auction.title, 
                     db_auction.image_url,
                     description=db_auction.description,
-                    all_images=db_auction.all_images
+                    all_images=db_auction.all_images,
+                    current_price=db_auction.price
                 )
 
                 db_auction.estimated_value = estimated_value

@@ -8,7 +8,7 @@ load_dotenv()
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-def analyze_auction_item(title: str, image_url: str, description: str = None, all_images: list = None) -> tuple[float, str]:
+def analyze_auction_item(title: str, image_url: str, description: str = None, all_images: list = None, current_price: str = None) -> tuple[float, str]:
     """
     Analyze an auction item using GPT-4o with all available information and market research
     """
@@ -17,15 +17,29 @@ def analyze_auction_item(title: str, image_url: str, description: str = None, al
         print(f"Conducting market research for: {title}")
         market_data = price_research.research_item_value(title, description)
         
+        # Parse current price if available
+        current_price_text = current_price if current_price else "Unknown"
+        
         # Build the content for analysis
         content_parts = [
             {
                 "type": "text", 
                 "text": f"""Analyze this auction item with EXTREME attention to detail:
 
-1. FIRST LINE: A single number representing the estimated fair market value in USD (e.g., 125.50)
+CRITICAL INSTRUCTIONS FOR VALUATION:
+1. FIRST LINE MUST BE: A single number representing what someone should pay for this auction RIGHT NOW (e.g., 125.50)
+   - This is the CURRENT AUCTION VALUE, not retail price
+   - Current bidding price: {current_price_text}
+   - If worth less than current price, suggest lower
+   - If worth more than current price, suggest what to pay
 
-2. SUBSEQUENT LINES: Provide an EXHAUSTIVE analysis including:
+2. DETAILED ANALYSIS:
+
+ITEM-BY-ITEM BREAKDOWN (REQUIRED):
+- List EVERY visible item with individual values
+- Format: "Item 1: [Description] - Value: $XX"
+- Include items visible in background/partially shown
+- Total lot value = sum of all items
 
 ITEM IDENTIFICATION:
 - Identify ALL items visible in the images (main item + any bonus/additional items)
@@ -46,22 +60,17 @@ CONDITION ASSESSMENT:
 - Note any repairs, restorations, or modifications
 - Assess completeness (missing accessories, manuals, boxes?)
 
-MULTIPLE ITEMS ANALYSIS:
-- If multiple items are shown together, evaluate EACH item separately
-- Identify if this is a lot/bundle and assess total value
-- Note which items drive the most value
-- Look for hidden gems that might be overlooked
+VALUATION SUMMARY:
+- Current Auction Value: What to pay now
+- Individual Retail Values: What each item sells for separately
+- Total Retail Value: Combined retail value of all items
+- Profit Potential: Difference between auction and retail
 
-VALUE FACTORS:
-- Rarity and collectibility level
-- Current market demand trends
-- Collector interest indicators
-- Investment potential
-
-MARKET RESEARCH INTEGRATION:
+MARKET RESEARCH DATA:
 {_format_market_research(market_data)}
 
-Title: {title}"""
+Title: {title}
+Current Auction Price: {current_price_text}"""
             }
         ]
         
@@ -89,7 +98,15 @@ Title: {title}"""
             messages=[
                 {
                     "role": "system",
-                    "content": "You are an expert appraiser specializing in collectibles and auction items. You have access to current market data and must provide accurate valuations based on actual sales data. Always consider the market research provided when estimating value."
+                    "content": """You are an expert auction appraiser who helps buyers determine fair prices at auctions. 
+
+CRITICAL: The FIRST LINE of your response must ALWAYS be a single number - the maximum amount someone should bid/pay for this auction RIGHT NOW. This is NOT the retail value, but what makes sense to pay at auction considering:
+- Current market prices
+- Condition
+- Resale potential
+- Competition from other bidders
+
+You must analyze EVERY item visible in photos, even background items, and provide individual valuations. Many valuable items are hidden in lots."""
                 },
                 {
                     "role": "user",
