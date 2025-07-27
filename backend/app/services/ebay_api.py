@@ -15,6 +15,12 @@ class eBayAPI:
         self.token = None
         self.token_expiry = None
         
+        # Debug logging
+        if self.client_id and self.client_secret:
+            print(f"eBay API credentials loaded. Client ID starts with: {self.client_id[:10]}...")
+        else:
+            print("WARNING: eBay API credentials NOT found in environment variables")
+            
     def _get_access_token(self):
         """
         Get OAuth token for eBay API
@@ -121,9 +127,11 @@ class eBayAPI:
         """
         Get statistics on sold prices for an item
         """
+        print(f"eBay API: Searching for sold prices of '{query}'")
         sold_items = self.search_completed_items(query)
         
         if not sold_items:
+            print(f"eBay API: No sold items found for '{query}'")
             return {
                 'average_price': 0,
                 'min_price': 0,
@@ -132,6 +140,7 @@ class eBayAPI:
                 'price_range': "No data available"
             }
             
+        print(f"eBay API: Found {len(sold_items)} sold items")
         prices = [item['price'] for item in sold_items if item['price'] > 0]
         
         if not prices:
