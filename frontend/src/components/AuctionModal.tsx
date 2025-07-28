@@ -33,9 +33,42 @@ interface ParsedItem {
   value: number;
 }
 
+interface MarketResearchData {
+  ebay_data?: {
+    num_sold: number;
+    average_price: number;
+    price_range: string;
+    recent_sales?: Array<{
+      title: string;
+      price: number;
+      condition?: string;
+      link?: string;
+      sold_date?: string;
+    }>;
+  };
+  web_results?: Array<{
+    title: string;
+    link: string;
+    snippet: string;
+  }>;
+  price_summary?: {
+    status: string;
+    estimated_value_range: string;
+    average_value: number;
+    confidence: string;
+    data_points: number;
+  };
+  recommendations?: {
+    list_price: string;
+    accept_offers_above: string;
+    quick_sale_price: string;
+    strategy: string;
+  };
+}
+
 export function AuctionModal({ auction, opened, onClose, onToggleWatchlist }: AuctionModalProps) {
   const [selectedImage, setSelectedImage] = useState(0);
-  const [marketData, setMarketData] = useState<any>(null);
+  const [marketData, setMarketData] = useState<MarketResearchData | null>(null);
   const [loadingMarketData, setLoadingMarketData] = useState(false);
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
@@ -79,26 +112,26 @@ export function AuctionModal({ auction, opened, onClose, onToggleWatchlist }: Au
 
   // Fetch market research data when modal opens or auction changes
   useEffect(() => {
+    const fetchMarketData = async () => {
+      if (!auction) return;
+      
+      setLoadingMarketData(true);
+      try {
+        const response = await fetch(`${backendUrl}/market-research/${auction.id}`);
+        if (!response.ok) throw new Error('Failed to fetch market research');
+        const data = await response.json();
+        setMarketData(data.market_research);
+      } catch (error) {
+        console.error('Error fetching market research:', error);
+      } finally {
+        setLoadingMarketData(false);
+      }
+    };
+
     if (opened && auction && auction.analysis) {
       fetchMarketData();
     }
-  }, [opened, auction?.id]);
-
-  const fetchMarketData = async () => {
-    if (!auction) return;
-    
-    setLoadingMarketData(true);
-    try {
-      const response = await fetch(`${backendUrl}/market-research/${auction.id}`);
-      if (!response.ok) throw new Error('Failed to fetch market research');
-      const data = await response.json();
-      setMarketData(data.market_research);
-    } catch (error) {
-      console.error('Error fetching market research:', error);
-    } finally {
-      setLoadingMarketData(false);
-    }
-  };
+  }, [opened, auction, backendUrl]);
 
   if (!auction) return null;
 
@@ -281,7 +314,7 @@ export function AuctionModal({ auction, opened, onClose, onToggleWatchlist }: Au
           ) : marketData ? (
             <Stack>
               {/* eBay Sold Listings */}
-              {marketData.ebay_data?.num_sold > 0 && (
+              {marketData.ebay_data && marketData.ebay_data.num_sold > 0 && (
                 <Paper shadow="xs" p="md">
                   <Group mb="md">
                     <Text fw={700}>📊 eBay Sold Listings</Text>
@@ -306,7 +339,7 @@ export function AuctionModal({ auction, opened, onClose, onToggleWatchlist }: Au
                       <Text fw={600} mt="md" mb="sm">Recent Sales:</Text>
                       <ScrollArea h={200}>
                         <Stack gap="xs">
-                          {marketData.ebay_data.recent_sales.slice(0, 5).map((sale: any, idx: number) => (
+                          {marketData.ebay_data.recent_sales.slice(0, 5).map((sale, idx: number) => (
                             <Paper key={idx} p="xs" withBorder>
                               <Group justify="space-between">
                                 <Text size="sm" lineClamp={1}>{sale.title}</Text>
@@ -333,7 +366,7 @@ export function AuctionModal({ auction, opened, onClose, onToggleWatchlist }: Au
                   <Text fw={700} mb="md">🌐 Web Pricing Research</Text>
                   <ScrollArea h={200}>
                     <Stack gap="xs">
-                      {marketData.web_results.slice(0, 5).map((result: any, idx: number) => (
+                      {marketData.web_results.slice(0, 5).map((result, idx: number) => (
                         <Paper key={idx} p="xs" withBorder>
                           <Anchor href={result.link} target="_blank" size="sm" fw={500}>
                             {result.title}
